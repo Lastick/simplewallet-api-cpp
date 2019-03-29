@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include <string.h>
 #include <curl/curl.h>
 #include <jansson.h>
@@ -50,7 +51,7 @@ void free_mem(void *ptr){
   free(ptr);
 }
 
-char *getURI(const char *host, const unsigned &port, const char *path, const bool &ssl){
+char *genURI(const char *host, const unsigned &port, const char *path, const bool &ssl){
   const char *http_prefix = "http://";
   const char *https_prefix = "https://";
   const char *sep_port = ":";
@@ -70,6 +71,22 @@ char *getURI(const char *host, const unsigned &port, const char *path, const boo
   return res;
 }
 
+void BalanceDebase(const double &balance_src,
+                   double &balance_res,
+                   const unsigned int &decimal_point,
+                   const unsigned int &prec_point,
+                   bool mode){
+  if (balance_src > 0){
+    balance_res = 0;
+    if (mode){
+      balance_res = (double) floor(balance_src * pow((double) 10, (double) decimal_point) + 0.5);
+    } else {
+      balance_res = (double) floor(balance_src / pow((double) 10, (double) decimal_point - prec_point) + 0.5) /
+                                                 pow((double) 10, (double) prec_point);
+    }
+  }
+}
+
 const char *SimplewalletAPI::default_api_host = "127.0.0.1";
 const char *SimplewalletAPI::default_api_path = "/";
 const unsigned int SimplewalletAPI::default_api_port = 15000;
@@ -77,6 +94,8 @@ const bool SimplewalletAPI::default_api_ssl = false;
 const char *SimplewalletAPI::user_agent = "SimplewalletAPI/1.0";
 const char *SimplewalletAPI::id_conn = "EWF8aIFX0y9w";
 const char *SimplewalletAPI::rpc_v = "2.0";
+const unsigned int SimplewalletAPI::decimal_point = 12;
+const unsigned int SimplewalletAPI::prec_point = 4;
 
 SimplewalletAPI::SimplewalletAPI(){
   this->api_host = strcopy(SimplewalletAPI::default_api_host);
@@ -138,7 +157,7 @@ char *SimplewalletAPI::client(const char *data){
   chunk.memory = (char*) malloc(1);
   chunk.size = 0;
   list = curl_slist_append(list, "Content-Type: application/json");
-  char *api_uri = getURI(this->api_host, this->api_port, this->api_path, this->api_ssl);
+  char *api_uri = genURI(this->api_host, this->api_port, this->api_path, this->api_ssl);
   this->api_status = false;
   curl = curl_easy_init();
   if(curl){
@@ -246,13 +265,21 @@ void SimplewalletAPI::getBalance(double &available_balance, double &locked_amoun
             if (json_is_object(result_obj)){
               available_balance_obj = json_object_get(result_obj, "available_balance");
               if (json_is_integer(available_balance_obj)){
-                available_balance = (double) json_number_value(available_balance_obj);
+                BalanceDebase(json_number_value(available_balance_obj),
+                              available_balance,
+                              SimplewalletAPI::decimal_point,
+                              SimplewalletAPI::prec_point,
+                              false);
                 status_n++;
                 json_object_clear(available_balance_obj);
               }
               locked_amount_obj = json_object_get(result_obj, "locked_amount");
               if (json_is_integer(locked_amount_obj)){
-                locked_amount = (double) json_number_value(locked_amount_obj);
+                BalanceDebase(json_number_value(locked_amount_obj),
+                              locked_amount,
+                              SimplewalletAPI::decimal_point,
+                              SimplewalletAPI::prec_point,
+                              false);
                 status_n++;
                 json_object_clear(locked_amount_obj);
               }

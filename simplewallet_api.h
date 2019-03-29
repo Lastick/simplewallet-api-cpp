@@ -45,6 +45,8 @@ class SimplewalletAPI {
     static const char *id_conn;
     static const char *rpc_v;
     static const unsigned int default_api_port;
+    static const unsigned int decimal_point;
+    static const unsigned int prec_point;
     static const bool default_api_ssl;
     char *client(const char *data);
     bool api_status;

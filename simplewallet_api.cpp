@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <curl\curl.h>
+#include <curl/curl.h>
 #include <jansson.h>
 #include "simplewallet_api.h"
 
@@ -48,6 +48,26 @@ char *numtostr(const int num){
 
 void free_mem(void *ptr){
   free(ptr);
+}
+
+char *getURI(const char *host, const unsigned &port, const char *path, const bool &ssl){
+  const char *http_prefix = "http://";
+  const char *https_prefix = "https://";
+  const char *sep_port = ":";
+  const char *uri_target = "/json_rpc";
+  char *res = strinit(8 + strlen(host) + 1 + 15 + 9);
+  char *str_api_port = numtostr(port);
+  if (ssl){
+    strcat(res, https_prefix);
+  } else {
+    strcat(res, http_prefix);
+  }
+  strcat(res, host);
+  strcat(res, sep_port);
+  strcat(res, str_api_port);
+  strcat(res, uri_target);
+  free_mem((void *) str_api_port);
+  return res;
 }
 
 const char *SimplewalletAPI::default_api_host = "127.0.0.1";
@@ -111,21 +131,6 @@ size_t SimplewalletAPI::WriteMemoryCallback(void *contents, size_t size, size_t 
 }
 
 char *SimplewalletAPI::client(const char *data){
-  const char *http_prefix = "http://";
-  const char *https_prefix = "https://";
-  const char *sep_port = ":";
-  const char *uri_target = "/json_rpc";
-  char *api_uri = strinit(8 + strlen(this->api_host) + 1 + 15 + 9);
-  char *str_api_port = numtostr(this->api_port);
-  if (this->api_ssl){
-    strcat(api_uri, https_prefix);
-  } else {
-    strcat(api_uri, http_prefix);
-  }
-  strcat(api_uri, this->api_host);
-  strcat(api_uri, sep_port);
-  strcat(api_uri, str_api_port);
-  strcat(api_uri, uri_target);
   CURL *curl;
   CURLcode res;
   curl_slist *list = NULL;
@@ -133,6 +138,7 @@ char *SimplewalletAPI::client(const char *data){
   chunk.memory = (char*) malloc(1);
   chunk.size = 0;
   list = curl_slist_append(list, "Content-Type: application/json");
+  char *api_uri = getURI(this->api_host, this->api_port, this->api_path, this->api_ssl);
   this->api_status = false;
   curl = curl_easy_init();
   if(curl){
@@ -151,13 +157,12 @@ char *SimplewalletAPI::client(const char *data){
     curl_slist_free_all(list);
     if(res == CURLE_OK){
       if (chunk.size > 0) this->api_status = true;
-	  } else {
+    } else {
       fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-	}
+    }
     curl_easy_cleanup(curl);
   }
   free_mem((void *) api_uri);
-  free_mem((void *) str_api_port);
   return chunk.memory;
 }
 
@@ -169,16 +174,20 @@ void SimplewalletAPI::getHeight(unsigned int &height){
   json_t *result_obj;
   json_t *height_obj;
   json_error_t error;
-  json_obj = json_object();
-  json_object_set(json_obj, "jsonrpc", json_string(SimplewalletAPI::rpc_v));
-  json_object_set(json_obj, "id", json_string(SimplewalletAPI::id_conn));
-  json_object_set(json_obj, "method", json_string(rpc_method));
+  json_obj = json_pack("{ssssss}",
+                       "jsonrpc", SimplewalletAPI::rpc_v,
+                       "id", SimplewalletAPI::id_conn,
+                       "method", rpc_method);
+  char *json_req;
+  json_req = json_dumps(json_obj, JSON_INDENT(2));
   this->res_status = false;
-  char *json_res = this->client(json_dumps(json_obj, 0));
+  char *json_res = this->client(json_req);
+  free_mem((void *) json_req);
   json_object_clear(json_obj);
+  json_decref(json_obj);
   if (this->api_status){
     json_obj = json_loads(json_res, 0, &error);
-    if(json_obj){
+    if (json_obj){
       if (json_is_object(json_obj)){
         id_obj = json_object_get(json_obj, "id");
         if (json_is_string(id_obj)){
@@ -188,6 +197,7 @@ void SimplewalletAPI::getHeight(unsigned int &height){
               height_obj = json_object_get(result_obj, "height");
               if (json_is_integer(height_obj)){
                 height = (unsigned int) json_number_value(height_obj);
+                this->res_status = true;
                 json_object_clear(height_obj);
               }
               json_object_clear(result_obj);
@@ -199,6 +209,7 @@ void SimplewalletAPI::getHeight(unsigned int &height){
       json_object_clear(json_obj);
     }
   }
+  json_decref(json_obj);
   free_mem((void *) json_res);
 }
 

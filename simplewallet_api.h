@@ -25,6 +25,15 @@ class SimplewalletAPI {
     SimplewalletAPI(const SimplewalletAPI &obj);
     ~SimplewalletAPI();
     void operator= (const SimplewalletAPI &obj);
+    void getHeight(unsigned int &height);
+    bool getStatus();
+
+  private:
+    struct MemoryStruct {
+      char *memory;
+      size_t size;
+    };
+    static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp);
     char *api_host;
     char *api_path;
     unsigned int api_port;
@@ -36,15 +45,6 @@ class SimplewalletAPI {
     static const char *rpc_v;
     static const unsigned int default_api_port;
     static const bool default_api_ssl;
-    void getHeight(unsigned int &height);
-    bool getStatus();
-
-  private:
-    struct MemoryStruct {
-      char *memory;
-      size_t size;
-    };
-    static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp);
     char *client(const char *data);
     bool api_status;
     bool res_status;

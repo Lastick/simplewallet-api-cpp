@@ -213,6 +213,63 @@ void SimplewalletAPI::getHeight(unsigned int &height){
   free_mem((void *) json_res);
 }
 
+void SimplewalletAPI::getBalance(double &available_balance, double &locked_amount){
+  const char *rpc_method = "getbalance";
+  available_balance = 0;
+  locked_amount = 0;
+  unsigned int status_n = 0;
+  json_t *json_obj;
+  json_t *id_obj;
+  json_t *result_obj;
+  json_t *available_balance_obj;
+  json_t *locked_amount_obj;
+  json_error_t error;
+  json_obj = json_pack("{ssssss}",
+                       "jsonrpc", SimplewalletAPI::rpc_v,
+                       "id", SimplewalletAPI::id_conn,
+                       "method", rpc_method);
+  char *json_req;
+  json_req = json_dumps(json_obj, JSON_INDENT(2));
+  this->res_status = false;
+  char *json_res = this->client(json_req);
+  free_mem((void *) json_req);
+  json_object_clear(json_obj);
+  json_decref(json_obj);
+  if (this->api_status){
+    json_obj = json_loads(json_res, 0, &error);
+    if (json_obj){
+      if (json_is_object(json_obj)){
+        id_obj = json_object_get(json_obj, "id");
+        if (json_is_string(id_obj)){
+          if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
+            result_obj = json_object_get(json_obj, "result");
+            if (json_is_object(result_obj)){
+              available_balance_obj = json_object_get(result_obj, "available_balance");
+              if (json_is_integer(available_balance_obj)){
+                available_balance = (double) json_number_value(available_balance_obj);
+                status_n++;
+                json_object_clear(available_balance_obj);
+              }
+              locked_amount_obj = json_object_get(result_obj, "locked_amount");
+              if (json_is_integer(locked_amount_obj)){
+                locked_amount = (double) json_number_value(locked_amount_obj);
+                status_n++;
+                json_object_clear(locked_amount_obj);
+              }
+              json_object_clear(result_obj);
+              if (status_n == 2) this->res_status = true;
+            }
+          }
+          json_object_clear(id_obj);
+        }
+      }
+      json_object_clear(json_obj);
+    }
+  }
+  json_decref(json_obj);
+  free_mem((void *) json_res);
+}
+
 bool SimplewalletAPI::getStatus(){
   return this->res_status;
 }

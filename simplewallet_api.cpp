@@ -460,6 +460,85 @@ void SimplewalletAPI::getTransfers(std::vector<Transfer> &transfers){
   free_mem((void *) json_res);
 }
 
+void SimplewalletAPI::doTransfer(std::vector<Destination> &destinations, std::string &payment_id, std::string tx_hash){
+  const char *rpc_method = "transfer";
+  tx_hash.clear();
+  json_t *json_obj;
+  json_t *params_obj;
+  json_t *destination_obj;
+  double amount;
+  json_t *destinations_obj;
+  json_t *error_obj;
+  json_t *id_obj;
+  json_t *result_obj;
+  json_t *tx_hash_obj;
+  json_error_t error;
+  destinations_obj = json_array();
+  for (unsigned int n = 0; n < destinations.size(); n++){
+    BalanceRebase(destinations[n].amount,
+                  amount,
+                  SimplewalletAPI::decimal_point,
+                  SimplewalletAPI::prec_point,
+                  true);
+    destination_obj = json_pack("{s:s, s:I}", "address", destinations[n].address.c_str(), "amount", (long long) amount);
+    json_array_append(destinations_obj, destination_obj);
+    json_decref(destination_obj);
+  }
+
+  params_obj = json_pack("{s:i, s:i, s:s, s:I, s:o}",
+                         "mixin", 0,
+                         "unlock_time", 0,
+                         "payment_id", payment_id.c_str(),
+                         "fee", 100000000000L,
+                         "destinations", destinations_obj);
+
+  json_obj = json_pack("{s:s, s:s, s:s, s:o}",
+                       "jsonrpc", SimplewalletAPI::rpc_v,
+                       "id", SimplewalletAPI::id_conn,
+                       "method", rpc_method,
+                       "params", params_obj);
+
+  char *json_req;
+  json_req = json_dumps(json_obj, JSON_INDENT(2));
+  this->res_status = false;
+  char *json_res = this->client(json_req);
+  free_mem((void *) json_req);
+  json_object_clear(json_obj);
+  json_decref(json_obj);
+  if (this->api_status){
+    json_obj = json_loads(json_res, 0, &error);
+    if (json_obj){
+      if (json_is_object(json_obj)){
+        error_obj = json_object_get(json_obj, "error");
+        if (json_is_object(error_obj)){
+          json_object_clear(error_obj);
+          this->res_status = false;
+        } else {
+          id_obj = json_object_get(json_obj, "id");
+          if (json_is_string(id_obj)){
+            if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
+              result_obj = json_object_get(json_obj, "result");
+              if (json_is_object(result_obj)){
+                tx_hash_obj = json_object_get(result_obj, "tx_hash");
+                if (json_is_string(tx_hash_obj)){
+                  tx_hash = std::string(json_string_value(tx_hash_obj));
+                  json_object_clear(tx_hash_obj);
+                  this->res_status = true;
+                }
+                json_object_clear(result_obj);
+              }
+            }
+            json_object_clear(id_obj);
+          }
+        }
+      }
+      json_object_clear(json_obj);
+    }
+  }
+  json_decref(json_obj);
+  free_mem((void *) json_res);
+}
+
 bool SimplewalletAPI::getStatus(){
   return this->res_status;
 }

@@ -443,6 +443,7 @@ void SimplewalletAPI::getTransfers(std::vector<Transfer> &transfers){
                       }
                     }
                   }
+                  this->res_status = true;
                   json_object_clear(transfers_obj);
                 }
                 json_object_clear(result_obj);

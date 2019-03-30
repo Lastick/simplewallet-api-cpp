@@ -27,6 +27,7 @@ class SimplewalletAPI {
     void operator= (const SimplewalletAPI &obj);
     void getHeight(unsigned int &height);
     void getBalance(double &available_balance, double &locked_amount);
+    void doReset();
     bool getStatus();
 
   private:

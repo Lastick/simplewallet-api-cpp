@@ -71,7 +71,7 @@ char *genURI(const char *host, const unsigned &port, const char *path, const boo
   return res;
 }
 
-void BalanceDebase(const double &balance_src,
+void BalanceRebase(const double &balance_src,
                    double &balance_res,
                    const unsigned int &decimal_point,
                    const unsigned int &prec_point,
@@ -189,6 +189,7 @@ void SimplewalletAPI::getHeight(unsigned int &height){
   const char *rpc_method = "get_height";
   height = 0;
   json_t *json_obj;
+  json_t *error_obj;
   json_t *id_obj;
   json_t *result_obj;
   json_t *height_obj;
@@ -208,21 +209,27 @@ void SimplewalletAPI::getHeight(unsigned int &height){
     json_obj = json_loads(json_res, 0, &error);
     if (json_obj){
       if (json_is_object(json_obj)){
-        id_obj = json_object_get(json_obj, "id");
-        if (json_is_string(id_obj)){
-          if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
-            result_obj = json_object_get(json_obj, "result");
-            if (json_is_object(result_obj)){
-              height_obj = json_object_get(result_obj, "height");
-              if (json_is_integer(height_obj)){
-                height = (unsigned int) json_number_value(height_obj);
-                this->res_status = true;
-                json_object_clear(height_obj);
+        error_obj = json_object_get(json_obj, "error");
+        if (json_is_object(error_obj)){
+          json_object_clear(error_obj);
+          this->res_status = false;
+        } else {
+          id_obj = json_object_get(json_obj, "id");
+          if (json_is_string(id_obj)){
+            if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
+              result_obj = json_object_get(json_obj, "result");
+              if (json_is_object(result_obj)){
+                height_obj = json_object_get(result_obj, "height");
+                if (json_is_integer(height_obj)){
+                  height = (unsigned int) json_number_value(height_obj);
+                  this->res_status = true;
+                  json_object_clear(height_obj);
+                }
+                json_object_clear(result_obj);
               }
-              json_object_clear(result_obj);
             }
+            json_object_clear(id_obj);
           }
-          json_object_clear(id_obj);
         }
       }
       json_object_clear(json_obj);
@@ -238,6 +245,7 @@ void SimplewalletAPI::getBalance(double &available_balance, double &locked_amoun
   locked_amount = 0;
   unsigned int status_n = 0;
   json_t *json_obj;
+  json_t *error_obj;
   json_t *id_obj;
   json_t *result_obj;
   json_t *available_balance_obj;
@@ -258,36 +266,89 @@ void SimplewalletAPI::getBalance(double &available_balance, double &locked_amoun
     json_obj = json_loads(json_res, 0, &error);
     if (json_obj){
       if (json_is_object(json_obj)){
-        id_obj = json_object_get(json_obj, "id");
-        if (json_is_string(id_obj)){
-          if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
-            result_obj = json_object_get(json_obj, "result");
-            if (json_is_object(result_obj)){
-              available_balance_obj = json_object_get(result_obj, "available_balance");
-              if (json_is_integer(available_balance_obj)){
-                BalanceDebase(json_number_value(available_balance_obj),
-                              available_balance,
-                              SimplewalletAPI::decimal_point,
-                              SimplewalletAPI::prec_point,
-                              false);
-                status_n++;
-                json_object_clear(available_balance_obj);
+        error_obj = json_object_get(json_obj, "error");
+        if (json_is_object(error_obj)){
+          json_object_clear(error_obj);
+          this->res_status = false;
+        } else {
+          id_obj = json_object_get(json_obj, "id");
+          if (json_is_string(id_obj)){
+            if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
+              result_obj = json_object_get(json_obj, "result");
+              if (json_is_object(result_obj)){
+                available_balance_obj = json_object_get(result_obj, "available_balance");
+                if (json_is_integer(available_balance_obj)){
+                  BalanceRebase(json_number_value(available_balance_obj),
+                                available_balance,
+                                SimplewalletAPI::decimal_point,
+                                SimplewalletAPI::prec_point,
+                                false);
+                  status_n++;
+                  json_object_clear(available_balance_obj);
+                }
+                locked_amount_obj = json_object_get(result_obj, "locked_amount");
+                if (json_is_integer(locked_amount_obj)){
+                  BalanceRebase(json_number_value(locked_amount_obj),
+                                locked_amount,
+                                SimplewalletAPI::decimal_point,
+                                SimplewalletAPI::prec_point,
+                                false);
+                  status_n++;
+                  json_object_clear(locked_amount_obj);
+                }
+                json_object_clear(result_obj);
+                if (status_n == 2) this->res_status = true;
               }
-              locked_amount_obj = json_object_get(result_obj, "locked_amount");
-              if (json_is_integer(locked_amount_obj)){
-                BalanceDebase(json_number_value(locked_amount_obj),
-                              locked_amount,
-                              SimplewalletAPI::decimal_point,
-                              SimplewalletAPI::prec_point,
-                              false);
-                status_n++;
-                json_object_clear(locked_amount_obj);
-              }
-              json_object_clear(result_obj);
-              if (status_n == 2) this->res_status = true;
             }
+            json_object_clear(id_obj);
           }
-          json_object_clear(id_obj);
+        }
+      }
+      json_object_clear(json_obj);
+    }
+  }
+  json_decref(json_obj);
+  free_mem((void *) json_res);
+}
+
+void SimplewalletAPI::doReset(){
+  const char *rpc_method = "reset";
+  json_t *json_obj;
+  json_t *error_obj;
+  json_t *id_obj;
+  json_t *result_obj;
+  json_error_t error;
+  json_obj = json_pack("{ssssss}",
+                       "jsonrpc", SimplewalletAPI::rpc_v,
+                       "id", SimplewalletAPI::id_conn,
+                       "method", rpc_method);
+  char *json_req;
+  json_req = json_dumps(json_obj, JSON_INDENT(2));
+  this->res_status = false;
+  char *json_res = this->client(json_req);
+  free_mem((void *) json_req);
+  json_object_clear(json_obj);
+  json_decref(json_obj);
+  if (this->api_status){
+    json_obj = json_loads(json_res, 0, &error);
+    if (json_obj){
+      if (json_is_object(json_obj)){
+        error_obj = json_object_get(json_obj, "error");
+        if (json_is_object(error_obj)){
+          json_object_clear(error_obj);
+          this->res_status = false;
+        } else {
+          id_obj = json_object_get(json_obj, "id");
+          if (json_is_string(id_obj)){
+            if (strcmp(json_string_value(id_obj), SimplewalletAPI::id_conn) == 0){
+              result_obj = json_object_get(json_obj, "result");
+              if (json_is_object(result_obj)){
+                this->res_status = true;
+                json_object_clear(result_obj);
+              }
+            }
+            json_object_clear(id_obj);
+          }
         }
       }
       json_object_clear(json_obj);

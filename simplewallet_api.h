@@ -17,6 +17,15 @@
 #ifndef SIMPLEWALLET_API_H_INCLUDED
 #define SIMPLEWALLET_API_H_INCLUDED
 
+#include <string>
+#include <vector>
+
+struct Transfer {
+  double amount;
+  std::string paymentId;
+  bool output;
+};
+
 class SimplewalletAPI {
 
   public:
@@ -28,6 +37,7 @@ class SimplewalletAPI {
     void getHeight(unsigned int &height);
     void getBalance(double &available_balance, double &locked_amount);
     void doReset();
+    void getTransfers(std::vector<Transfer> &transfers);
     bool getStatus();
 
   private:
@@ -55,4 +65,4 @@ class SimplewalletAPI {
 
 };
 
-#endif // BASE_LINK_H_INCLUDED
+#endif // SIMPLEWALLET_API_H_INCLUDED

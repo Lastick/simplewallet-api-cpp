@@ -30,6 +30,7 @@ class SimplewalletAPI {
 
   public:
     SimplewalletAPI();
+    SimplewalletAPI(const char *host, const unsigned port, const bool ssl);
     SimplewalletAPI(const char *host, const char *path, const unsigned port, const bool ssl);
     SimplewalletAPI(const SimplewalletAPI &obj);
     ~SimplewalletAPI();

@@ -105,6 +105,14 @@ SimplewalletAPI::SimplewalletAPI(){
   this->res_status = false;
 }
 
+SimplewalletAPI::SimplewalletAPI(const char *host, const unsigned port, const bool ssl){
+  this->api_host = strcopy(host);
+  this->api_path = strcopy(SimplewalletAPI::default_api_path);
+  this->api_port = port;
+  this->api_ssl = ssl;
+  this->res_status = false;
+}
+
 SimplewalletAPI::SimplewalletAPI(const char *host, const char *path, const unsigned port, const bool ssl){
   this->api_host = strcopy(host);
   this->api_path = strcopy(path);

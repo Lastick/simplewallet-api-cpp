@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 #include <string.h>
 #include <curl/curl.h>
 #include <jansson.h>
@@ -91,6 +92,18 @@ void BalanceRebase(double &balance_frl,
   }
 
 }
+
+char *genPID(){
+  const unsigned int pid_len = 32;
+  char *pid = strinit(pid_len * 2);
+  unsigned char byte_pid = 0x00;
+  srand((unsigned int) time(NULL));
+  for (unsigned int n = 0; n < pid_len; n++){
+    byte_pid = rand() % 255;
+    sprintf(pid + n * 2, "%02X", byte_pid);
+  }
+  return pid;
+};
 
 const char *SimplewalletAPI::default_api_host = "127.0.0.1";
 const char *SimplewalletAPI::default_api_path = "/";
@@ -550,6 +563,13 @@ void SimplewalletAPI::doTransfer(std::vector<Destination> &destinations, std::st
   }
   json_decref(json_obj);
   free_mem((void *) json_res);
+}
+
+void SimplewalletAPI::getPID(std::string &pid){
+  pid.clear();
+  char *pid_str = genPID();
+  pid = std::string(pid_str);
+  free_mem((void *) pid_str);
 }
 
 bool SimplewalletAPI::getStatus(){

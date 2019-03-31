@@ -45,6 +45,7 @@ class SimplewalletAPI {
     void doReset();
     void getTransfers(std::vector<Transfer> &transfers);
     void doTransfer(std::vector<Destination> &destinations, std::string &payment_id, std::string &tx_hash);
+    void getPID(std::string &pid);
     bool getStatus();
 
   private:

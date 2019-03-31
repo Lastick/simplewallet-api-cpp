@@ -71,20 +71,25 @@ char *genURI(const char *host, const unsigned &port, const char *path, const boo
   return res;
 }
 
-void BalanceRebase(const double &balance_src,
-                   double &balance_res,
+void BalanceRebase(double &balance_frl,
+                   long long &balance_ntv,
                    const unsigned int &decimal_point,
                    const unsigned int &prec_point,
                    bool mode){
-  if (balance_src > 0){
-    balance_res = 0;
-    if (mode){
-      balance_res = (double) floor(balance_src * pow((double) 10, (double) decimal_point) + 0.5);
-    } else {
-      balance_res = (double) floor(balance_src / pow((double) 10, (double) decimal_point - prec_point) + 0.5) /
+
+  if (mode){
+    balance_ntv = 0;
+    if (balance_frl > 0){
+      balance_ntv = (long long) floor(balance_frl * pow((double) 10, (double) decimal_point) + 0.5);
+    }
+  } else {
+    balance_frl = 0.0;
+    if (balance_ntv > 0){
+      balance_frl = (double) floor(balance_ntv / pow((double) 10, (double) decimal_point - prec_point) + 0.5) /
                                                  pow((double) 10, (double) prec_point);
     }
   }
+
 }
 
 const char *SimplewalletAPI::default_api_host = "127.0.0.1";
@@ -251,6 +256,7 @@ void SimplewalletAPI::getBalance(double &available_balance, double &locked_amoun
   const char *rpc_method = "getbalance";
   available_balance = 0;
   locked_amount = 0;
+  long long amount_buff = 0;
   unsigned int status_n = 0;
   json_t *json_obj;
   json_t *error_obj;
@@ -286,8 +292,10 @@ void SimplewalletAPI::getBalance(double &available_balance, double &locked_amoun
               if (json_is_object(result_obj)){
                 available_balance_obj = json_object_get(result_obj, "available_balance");
                 if (json_is_integer(available_balance_obj)){
-                  BalanceRebase(json_number_value(available_balance_obj),
-                                available_balance,
+                  amount_buff = 0;
+                  amount_buff = (long long) json_integer_value(available_balance_obj);
+                  BalanceRebase(available_balance,
+                                amount_buff,
                                 SimplewalletAPI::decimal_point,
                                 SimplewalletAPI::prec_point,
                                 false);
@@ -296,8 +304,10 @@ void SimplewalletAPI::getBalance(double &available_balance, double &locked_amoun
                 }
                 locked_amount_obj = json_object_get(result_obj, "locked_amount");
                 if (json_is_integer(locked_amount_obj)){
-                  BalanceRebase(json_number_value(locked_amount_obj),
-                                locked_amount,
+                  amount_buff = 0;
+                  amount_buff = (long long) json_integer_value(locked_amount_obj);
+                  BalanceRebase(locked_amount,
+                                amount_buff,
                                 SimplewalletAPI::decimal_point,
                                 SimplewalletAPI::prec_point,
                                 false);
@@ -376,6 +386,7 @@ void SimplewalletAPI::getTransfers(std::vector<Transfer> &transfers){
   json_t *transfers_obj;
   json_t *transfer_obj;
   json_t *amount_obj;
+  long long amount_buff = 0;
   json_t *transactionHash_obj;
   json_t *output_obj;
   size_t transfer_n = 0;
@@ -419,8 +430,10 @@ void SimplewalletAPI::getTransfers(std::vector<Transfer> &transfers){
                       if (json_is_object(transfer_obj)){
                         amount_obj = json_object_get(transfer_obj, "amount");
                         if (json_is_integer(amount_obj)){
-                          BalanceRebase(json_number_value(amount_obj),
-                                        transfers[n].amount,
+                          amount_buff = 0;
+                          amount_buff = (long long) json_integer_value(amount_obj);
+                          BalanceRebase(transfers[n].amount,
+                                        amount_buff,
                                         SimplewalletAPI::decimal_point,
                                         SimplewalletAPI::prec_point,
                                         false);
@@ -460,13 +473,13 @@ void SimplewalletAPI::getTransfers(std::vector<Transfer> &transfers){
   free_mem((void *) json_res);
 }
 
-void SimplewalletAPI::doTransfer(std::vector<Destination> &destinations, std::string &payment_id, std::string tx_hash){
+void SimplewalletAPI::doTransfer(std::vector<Destination> &destinations, std::string &payment_id, std::string &tx_hash){
   const char *rpc_method = "transfer";
   tx_hash.clear();
   json_t *json_obj;
   json_t *params_obj;
   json_t *destination_obj;
-  double amount;
+  long long amount;
   json_t *destinations_obj;
   json_t *error_obj;
   json_t *id_obj;
@@ -480,7 +493,7 @@ void SimplewalletAPI::doTransfer(std::vector<Destination> &destinations, std::st
                   SimplewalletAPI::decimal_point,
                   SimplewalletAPI::prec_point,
                   true);
-    destination_obj = json_pack("{s:s, s:I}", "address", destinations[n].address.c_str(), "amount", (long long) amount);
+    destination_obj = json_pack("{s:s, s:I}", "address", destinations[n].address.c_str(), "amount", amount);
     json_array_append(destinations_obj, destination_obj);
     json_decref(destination_obj);
   }

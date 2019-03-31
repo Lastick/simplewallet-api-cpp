@@ -44,7 +44,7 @@ class SimplewalletAPI {
     void getBalance(double &available_balance, double &locked_amount);
     void doReset();
     void getTransfers(std::vector<Transfer> &transfers);
-    void doTransfer(std::vector<Destination> &destinations, std::string &payment_id, std::string tx_hash);
+    void doTransfer(std::vector<Destination> &destinations, std::string &payment_id, std::string &tx_hash);
     bool getStatus();
 
   private:
